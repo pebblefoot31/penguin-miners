@@ -1,0 +1,104 @@
+# =============================================================================
+# RescueRobot — master configuration
+# All tunable parameters live here so no magic numbers leak into the code.
+# =============================================================================
+
+simulation:
+  physics_dt: 0.0166667        # 60 Hz physics step
+  rendering_dt: 0.0333333      # 30 Hz render step
+  headless: false              # set true for servers without a display
+  stage_units_in_meters: 1.0
+  world_usd: ""                # optional path to a prebuilt disaster-scene USD
+  robot_prim_path: "/World/RescueRobot"
+  robot_usd: ""                # optional path to the robot USD asset
+
+robot:
+  base_max_linear_speed: 0.8    # m/s
+  base_max_angular_speed: 1.2   # rad/s
+  arm_dof_count: 6
+  arm_home_config: [0.0, -0.6, 1.2, 0.0, 0.9, 0.0]   # radians
+  base_footprint_radius: 0.45   # m, used for obstacle inflation
+
+sensors:
+  rgb_camera:
+    prim_path: "/World/RescueRobot/zivid_m60/rgb"
+    model: "Zivid M60"
+    resolution: [1944, 1200]    # Zivid M60 native-ish RGB resolution
+    horizontal_fov_deg: 54.0
+  depth_camera:
+    prim_path: "/World/RescueRobot/zivid_m60/depth"
+    resolution: [1944, 1200]
+    min_range: 0.3              # m
+    max_range: 8.0              # m
+  torque_sensor:
+    joint_paths:
+      - "/World/RescueRobot/arm/joint_4"
+      - "/World/RescueRobot/arm/joint_5"
+      - "/World/RescueRobot/arm/wrist"
+    sample_rate_hz: 200
+
+perception:
+  yolo:
+    weights: "models/rescue_suit_yolo.pt"   # custom-trained weights
+    confidence_threshold: 0.55
+    iou_threshold: 0.45
+    device: "cuda:0"            # "cpu" if no GPU
+    target_class_name: "rescue_suit"
+  depth:
+    voxel_size: 0.05            # m, Open3D downsampling
+    obstacle_min_height: 0.10   # m above ground to count as an obstacle
+    obstacle_max_height: 2.0    # m, ignore ceilings above this
+    ground_plane_tolerance: 0.04
+  fusion:
+    max_target_age_s: 2.0       # drop the target if not re-seen within this
+    target_exclusion_radius_m: 0.7  # don't treat the rescue subject as an obstacle
+
+navigation:
+  occupancy_grid:
+    resolution: 0.10            # m per cell
+    width: 200                  # cells (=> 20 m)
+    height: 200
+    origin: [-10.0, -10.0]      # world coords of grid cell (0,0)
+  astar:
+    allow_diagonal: true
+    obstacle_inflation_cells: 5  # ~base radius / resolution
+    heuristic_weight: 1.0
+  waypoint_follower:
+    arrival_tolerance: 0.15      # m
+    lookahead_distance: 0.5      # m
+    approach_distance: 1.0       # m, stop this far from the target to grasp
+    replan_check_period_s: 0.5
+
+manipulation:
+  grasp:
+    handle_offsets: [[0.0, 0.18, 0.05], [0.0, -0.18, 0.05]]  # suit handle frames
+    pre_grasp_standoff: 0.12     # m above the handle
+    lift_height: 0.4             # m to lift after grasping
+  torque:
+    safety_threshold_nm: 35.0    # ABORT lift above this
+    warning_threshold_nm: 28.0
+    grasp_contact_threshold_nm: 4.0   # torque indicating handle contact
+  capsule:
+    prim_path: "/World/TransportCapsule"
+    load_pose: [0.0, 0.0, 0.6]   # capsule-frame pose to place the target
+    verify_settle_time_s: 1.5
+
+ai:
+  provider: "anthropic"
+  model: "claude-opus-4-8"       # high-level planner model
+  effort: "medium"               # low | medium | high | max
+  max_tokens: 1024
+  timeout_s: 30
+  request_period_s: 1.0          # how often to consult the planner
+  enable_llm: true               # false => deterministic rule-based planner only
+
+mission:
+  search_rotate_speed: 0.4       # rad/s while scanning for the target
+  search_timeout_s: 120
+  max_navigation_time_s: 180
+  abort_on_target_loss: true
+
+logging:
+  level: "INFO"                  # DEBUG | INFO | WARNING | ERROR
+  decision_log_path: "logs/decisions.jsonl"
+  console: true

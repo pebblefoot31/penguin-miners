@@ -1,0 +1,14 @@
+# RescueRobot — Python 3.11
+#
+# NOTE: NVIDIA Isaac Sim ships its own Python environment with omni.* / isaacsim.*
+# packages. Install the libraries below *into* that environment (./python.sh -m pip
+# install -r requirements.txt). Isaac Sim itself is not pip-installable here.
+
+numpy>=1.26,<2.0
+opencv-python>=4.9
+open3d>=0.18
+ultralytics>=8.1          # YOLO detector
+PyYAML>=6.0
+anthropic>=0.40           # Claude API — high-level planner
+pydantic>=2.6             # Structured-output schema for the planner
+scipy>=1.11               # Spatial math (KD-trees, transforms)
